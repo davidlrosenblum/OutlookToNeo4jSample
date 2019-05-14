@@ -110,7 +110,7 @@ namespace OutlookToNeo4j
         public IEnumerable<FromExchange> GetExchangeData()
         {
             // throw new NotImplementedException();
-            //try
+           try
             {
                 outlookApplication = new Application();
                 outlookNamespace = outlookApplication.GetNamespace("MAPI");
@@ -135,8 +135,8 @@ namespace OutlookToNeo4j
                     //Marshal.ReleaseComObject(item);
                 }
             }
-            //catch { }
-            //finally
+            catch { }
+            finally
             {
                /* ReleaseComObject(mailItems);
                 ReleaseComObject(inboxFolder);
