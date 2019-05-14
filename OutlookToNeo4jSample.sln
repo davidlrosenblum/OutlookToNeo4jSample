@@ -5,6 +5,12 @@ VisualStudioVersion = 16.0.28803.352
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OutlookToNeo4jSample", "OutlookToNeo4jSample.csproj", "{CA26BD33-59A6-49F3-912B-07672AB052E6}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6A51EE29-667C-4014-B80E-9F9CC4D69D2A}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		README.md = README.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		aaa|Any CPU = aaa|Any CPU

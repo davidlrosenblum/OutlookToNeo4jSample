@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -117,21 +117,24 @@ namespace OutlookToNeo4j
                 inboxFolder = outlookNamespace.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
                 mailItems = inboxFolder.Items;
                 
-                foreach (MailItem item in mailItems)
+                foreach (var inboxItem in mailItems)
                 {
+                    if (!(inboxItem is MailItem item))
+                        continue;
+
                     var stringBuilder = new StringBuilder();
-                    stringBuilder.AppendLine("From: " + item.SenderEmailAddress);
-                    stringBuilder.AppendLine("To: " + item.To);
-                    stringBuilder.AppendLine("CC: " + item.CC);
+                    stringBuilder.AppendLine($"From: {item.SenderEmailAddress}");
+                    stringBuilder.AppendLine($"To: {item.To}");
+                    stringBuilder.AppendLine($"CC: {item.CC}");
                     stringBuilder.AppendLine("");
-                    stringBuilder.AppendLine("Subject: " + item.Subject);
+                    stringBuilder.AppendLine($"Subject: {item.Subject}");
                     //stringBuilder.AppendLine(item.Body);
 
                     Console.WriteLine(stringBuilder);
-                    var from = new Person { Email = item.SenderEmailAddress };
-                    var to = new Person { Email = item.To };
-                    _data.Add(new FromExchange { From = from, To = new List<Person> { to }, Id = item.EntryID, Subject = item.Subject });
-                
+                    var from = new Person {Email = item.SenderEmailAddress};
+                    var to = new Person {Email = item.To};
+                    _data.Add(new FromExchange {From = @from, To = new List<Person> {to}, Id = item.EntryID, Subject = item.Subject});
+
                     //Marshal.ReleaseComObject(item);
                 }
             }
