@@ -8,9 +8,9 @@ using Microsoft.Office.Interop.Outlook;
 
 namespace OutlookToNeo4j
 {
-   
+    using Exception = Microsoft.Office.Interop.Outlook.Exception;
 
-    
+
     class Program
     {
         
@@ -19,7 +19,7 @@ namespace OutlookToNeo4j
            
 
             //New Bolt Graph Client
-            var graphClient = new BoltGraphClient("bolt://localhost:7687/", "neo4j", "Myneo4j");
+            var graphClient = new BoltGraphClient("bolt://localhost:7687/", "neo4j", "neo");
             graphClient.Connect();
 
             //Store the data from the DataProvider
@@ -33,22 +33,23 @@ namespace OutlookToNeo4j
         {
             foreach (var data in dataProvider.GetExchangeData())
             {
-                if (data.From.Email != null) { 
-                client.Cypher
-                    .Merge($"(from:{Person.Labels} {{Email: $frm.{nameof(Person.Email)} }})")
-                    .OnCreate().Set($"from.Name = $frm.{nameof(Person.Name)}")
-                    .Merge($"(e:{Email.Labels} {{Uuid: $data.{nameof(FromExchange.Id)}}})")
-                    .OnCreate().Set($"e.Subject = $data.{nameof(FromExchange.Subject)}")
-                    .Merge($"(from)-[:{RelationshipTypes.Sent}]->(e)")
-                    .With("e" )
-                    .Unwind(data.To, "to")
-                    //.With("e,split($data.To,';') as vTo")
-                    //.Unwind("vTo" , "to")
-                    .Merge($"(t:{Person.Labels} {{Email: coalesce(to.{nameof(Person.Email)},'none')}})")
-                    .OnCreate().Set($"t.Name = to.{nameof(Person.Name)}")
-                    .Merge($"(e)-[:{RelationshipTypes.Received}]->(t)")
-                    .WithParams(new { data, frm = data.From })
-                    .ExecuteWithoutResults();
+                if (data.From.Email != null)
+                { 
+                    client.Cypher
+                        .Merge($"(from:{Person.Labels} {{Email: $frm.{nameof(Person.Email)} }})")
+                        .OnCreate().Set($"from.Name = $frm.{nameof(Person.Name)}")
+                        .Merge($"(e:{Email.Labels} {{Uuid: $data.{nameof(FromExchange.Id)}}})")
+                        .OnCreate().Set($"e.Subject = $data.{nameof(FromExchange.Subject)}")
+                        .Merge($"(from)-[:{RelationshipTypes.Sent}]->(e)")
+                        .With("e" )
+                        .Unwind(data.To, "to")
+                        //.With("e,split($data.To,';') as vTo")
+                        //.Unwind("vTo" , "to")
+                        .Merge($"(t:{Person.Labels} {{Email: coalesce(to.{nameof(Person.Email)},'none')}})")
+                        .OnCreate().Set($"t.Name = to.{nameof(Person.Name)}")
+                        .Merge($"(e)-[:{RelationshipTypes.Received}]->(t)")
+                        .WithParams(new { data, frm = data.From })
+                        .ExecuteWithoutResults();
                 }
             }
         }
@@ -111,10 +112,11 @@ namespace OutlookToNeo4j
         MAPIFolder inboxFolder = null;
         Items mailItems = null;
         private readonly List<FromExchange> _data = new List<FromExchange>();
+
         public IEnumerable<FromExchange> GetExchangeData()
         {
             // throw new NotImplementedException();
-           try
+            try
             {
                 outlookApplication = new Application();
                 outlookNamespace = outlookApplication.GetNamespace("MAPI");
@@ -133,23 +135,25 @@ namespace OutlookToNeo4j
                     stringBuilder.AppendLine($"BCC: {item.BCC}");
                     stringBuilder.AppendLine("");
                     stringBuilder.AppendLine($"Subject: {item.Subject}");
-                    //stringBuilder.AppendLine(item.Body);
-                    List<string> stringList = item.To.Split(';').ToList();
+                    
                     Console.WriteLine(stringBuilder);
-                    var from = new Person { Email = item.SenderEmailAddress, Name = item.SenderName };
-                    var cc = new Person { Email = item.CC };
-                    var to = new Person { };
-                    foreach (String element in stringList) { 
-                        to = new Person { Email = element };
-                    }
-                    var bcc = new Person { Email = item.BCC };
-                    _data.Add(new FromExchange {From = @from, To = new List<Person> {to},  CC = new List<Person> { cc }, BCC = new List<Person> { bcc }, Id = item.EntryID, Subject = item.Subject});
+                    var from = new Person {Email = item.SenderEmailAddress, Name = item.SenderName};
+                    var cc = GetPersonsFromEmailString(item.CC);
+                    var to = GetPersonsFromEmailString(item.To);
+                    var bcc = GetPersonsFromEmailString(item.BCC);
+
+                    _data.Add(new FromExchange {From = @from, To = to, CC = cc, BCC = bcc, Id = item.EntryID, Subject = item.Subject});
                     ii++;
                     if (ii > 300) break;
                     //Marshal.ReleaseComObject(item);
                 }
             }
-            catch { }
+            catch (System.Exception ex)
+            {
+                Console.WriteLine(ex);
+                Console.WriteLine("Press ENTER to carry on processing.");
+                Console.ReadLine();
+            }
             finally
             {
                /* ReleaseComObject(mailItems);
@@ -169,6 +173,13 @@ namespace OutlookToNeo4j
                 obj = null;
             }
         }*/
+
+       private IEnumerable<Person> GetPersonsFromEmailString(string emails)
+       {
+           if (string.IsNullOrWhiteSpace(emails))
+               return new Person[0];
+           return emails.Split(";".ToCharArray(), StringSplitOptions.RemoveEmptyEntries).Select(s => new Person {Email = s});
+       }
     }
 }
 
