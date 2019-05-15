@@ -33,19 +33,23 @@ namespace OutlookToNeo4j
         {
             foreach (var data in dataProvider.GetExchangeData())
             {
+                if (data.From.Email != null) { 
                 client.Cypher
                     .Merge($"(from:{Person.Labels} {{Email: $frm.{nameof(Person.Email)} }})")
                     .OnCreate().Set($"from.Name = $frm.{nameof(Person.Name)}")
                     .Merge($"(e:{Email.Labels} {{Uuid: $data.{nameof(FromExchange.Id)}}})")
                     .OnCreate().Set($"e.Subject = $data.{nameof(FromExchange.Subject)}")
                     .Merge($"(from)-[:{RelationshipTypes.Sent}]->(e)")
-                    .With("e")
+                    .With("e" )
                     .Unwind(data.To, "to")
-                    .Merge($"(t:{Person.Labels} {{Email: to.{nameof(Person.Email)}}})")
+                    //.With("e,split($data.To,';') as vTo")
+                    //.Unwind("vTo" , "to")
+                    .Merge($"(t:{Person.Labels} {{Email: coalesce(to.{nameof(Person.Email)},'none')}})")
                     .OnCreate().Set($"t.Name = to.{nameof(Person.Name)}")
                     .Merge($"(e)-[:{RelationshipTypes.Received}]->(t)")
                     .WithParams(new { data, frm = data.From })
                     .ExecuteWithoutResults();
+                }
             }
         }
 
@@ -116,7 +120,7 @@ namespace OutlookToNeo4j
                 outlookNamespace = outlookApplication.GetNamespace("MAPI");
                 inboxFolder = outlookNamespace.GetDefaultFolder(OlDefaultFolders.olFolderInbox);
                 mailItems = inboxFolder.Items;
-                
+                Int32 ii = 0;
                 foreach (var inboxItem in mailItems)
                 {
                     if (!(inboxItem is MailItem item))
@@ -126,15 +130,22 @@ namespace OutlookToNeo4j
                     stringBuilder.AppendLine($"From: {item.SenderEmailAddress}");
                     stringBuilder.AppendLine($"To: {item.To}");
                     stringBuilder.AppendLine($"CC: {item.CC}");
+                    stringBuilder.AppendLine($"BCC: {item.BCC}");
                     stringBuilder.AppendLine("");
                     stringBuilder.AppendLine($"Subject: {item.Subject}");
                     //stringBuilder.AppendLine(item.Body);
-
+                    List<string> stringList = item.To.Split(';').ToList();
                     Console.WriteLine(stringBuilder);
-                    var from = new Person {Email = item.SenderEmailAddress};
-                    var to = new Person {Email = item.To};
-                    _data.Add(new FromExchange {From = @from, To = new List<Person> {to}, Id = item.EntryID, Subject = item.Subject});
-
+                    var from = new Person { Email = item.SenderEmailAddress, Name = item.SenderName };
+                    var cc = new Person { Email = item.CC };
+                    var to = new Person { };
+                    foreach (String element in stringList) { 
+                        to = new Person { Email = element };
+                    }
+                    var bcc = new Person { Email = item.BCC };
+                    _data.Add(new FromExchange {From = @from, To = new List<Person> {to},  CC = new List<Person> { cc }, BCC = new List<Person> { bcc }, Id = item.EntryID, Subject = item.Subject});
+                    ii++;
+                    if (ii > 300) break;
                     //Marshal.ReleaseComObject(item);
                 }
             }
@@ -167,6 +178,7 @@ namespace OutlookToNeo4j
         public Person From { get; set; }
         public IEnumerable<Person> To { get; set; }
         public IEnumerable<Person> CC { get; set; }
+        public IEnumerable<Person> BCC { get; set; }
 
         public string Subject { get; set; }
         public string Id { get; set; }
